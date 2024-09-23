@@ -1,7 +1,7 @@
 import logging
 import requests
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import os
 
 # Set up logging
@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = '6315185069:AAGeIwcUzw66keUM6o0Mtv9sytWQWH_WhMI'
 API_BASE_URL = 'https://api3.peaceful-wolf.workers.dev'
 
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Send me the name of an anime to search for!')
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text('Send me the name of an anime to search for!')
 
-def search_anime(update: Update, context: CallbackContext) -> None:
+async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     name = update.message.text
     response = requests.get(f'{API_BASE_URL}/search/{name}')
 
@@ -46,31 +46,28 @@ def search_anime(update: Update, context: CallbackContext) -> None:
 
                         # Send the file to Telegram
                         with open(file_name, 'rb') as f:
-                            update.message.reply_document(document=f)
+                            await update.message.reply_document(document=f)
 
                         # Clean up by deleting the file after sending
                         os.remove(file_name)
                     else:
-                        update.message.reply_text('Error downloading the file.')
+                        await update.message.reply_text('Error downloading the file.')
                 else:
-                    update.message.reply_text('No download links found for that anime.')
+                    await update.message.reply_text('No download links found for that anime.')
             else:
-                update.message.reply_text('Error fetching download links.')
+                await update.message.reply_text('Error fetching download links.')
         else:
-            update.message.reply_text('No anime found with that name.')
+            await update.message.reply_text('No anime found with that name.')
     else:
-        update.message.reply_text('Error fetching data from the API.')
+        await update.message.reply_text('Error fetching data from the API.')
 
 def main() -> None:
-    updater = Updater(TELEGRAM_BOT_TOKEN)
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    dispatcher = updater.dispatcher
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime))
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, search_anime))
-
-    updater.start_polling()
-    updater.idle()
+    app.run_polling()
 
 if __name__ == '__main__':
     main()
